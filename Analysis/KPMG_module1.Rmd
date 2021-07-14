@@ -1,0 +1,76 @@
+---
+title: "KPMG"
+author: "Thomas Nguyen"
+date: "13/07/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+```
+
+
+```{r include = FALSE}
+library(tidyverse)
+library(readxl)
+library(fpp3)
+library(openxlsx)
+library(naniar)
+library(kableExtra)
+```
+
+```{r}
+KPMG <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerDemographic", skip = 1) %>%
+  mutate(DOB = convertToDate(DOB)) %>%
+  select(-default)
+```
+
+```{r include = FALSE}
+KPMG %>% miss_var_summary() %>% 
+  kable(caption = "Missing values in the dataset",
+        digits = 3) %>%
+  kable_styling(bootstrap_options = 
+                  c("striped", "hover")
+                   ) 
+
+```
+
+```{r}
+# Check for duplicate
+
+a <- KPMG  %>% group_by(last_name, DOB) %>% filter (n()>1)
+```
+
+Dear Mr. A, manager of Analytics, Information & Modelling,
+My name is Thomas from your team. 
+After checking for the quality of the data from Sprocket Central Pty Ltd , I have found some issues:
+
+1. Column "default" is unreadable.
+2. Accuracy
+There is 1 customer that were born in 1843, which is almost impossible. This must be an error (It should be marked with NA for future analysis)
+3. Completeness
+There are 4 columns that contain missing values: Job Title, Last Name, DOB and tenure
+506 lines (or 12.650%) of Job title column are missing.
+125 lines (or 3.125%) of last_name column is missing.
+88 lines (or 2.2%) of DOB column is missing.
+87 lines (or 2.175%) of tenure column is missing.
+
+4. Consistency
+The data seems to have good consistentcy
+
+5. Currency
+Value is up to date
+
+6. Relevancy 
+There is no meta data in the dataset
+
+
+7. Validity
+
+There are grammar errors anddifferent ways of recording data in gender columns: (Femal, F, M, U).
+There are job title that share the same name (Eg. Developer I, Developer II), need to clarify this
+
+8. Uniqueness
+There is no duplicated data 
