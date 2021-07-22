@@ -19,6 +19,8 @@ library(openxlsx)
 library(naniar)
 library(kableExtra)
 library(eeptools)
+library(jan)
+library(tidymodels)
 ```
 
 ```{r}
@@ -33,14 +35,44 @@ KPMG_cus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"),
 
 # calculate age from dob
 KPMG_cus <- KPMG_cus %>% drop_na(DOB) %>%
-  mutate(age = round(age_calc(DOB, enddate = Sys.Date(), units = "years"),0))
+  mutate(age = round(age_calc(DOB, enddate = Sys.Date(), units = "years"),0)) %>%
+  mutate(gender = if_else(tolower(gender) %in% c("f", "femal"), "Female", gender)) %>%
+  mutate(gender = if_else(tolower(gender) == "m", "Male", gender))  %>%
+  rename( "p3year_purchases" = "past_3_years_bike_related_purchases", 
+          "job_cat" = "job_industry_category") %>% 
+  select(-DOB)
+```
+
+```{r}
+
+# Finalize customer dataset
+
+KPMG_cus_tr <- recipe(~., data = KPMG_cus) %>%
+  step_string2factor(job_cat, wealth_segment, deceased_indicator, owns_car) %>%
+  prep(training = KPMG_cus,
+       strings_as_factors = FALSE) %>%
+  bake(new_data = NULL)
 ```
 
 
+
+
 ```{r}
-KPMG_newcus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerDemographic", skip = 1) %>%
-  mutate(DOB = convertToDate(DOB)) %>%
-  select(-default) 
+KPMG_newcus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "NewCustomerList", skip = 1) %>%
+  mutate(id = row_number())
+KPMG_newcus_datefix1 <- KPMG_newcus %>% 
+  mutate(dob = ymd(DOB)) %>% drop_na(dob)
+KPMG_newcus_datefix2 <-  KPMG_newcus %>%  mutate(dob = convertToDate(DOB)) %>% drop_na(dob)
+
+KPMG_newcus_datefix <- rbind(KPMG_newcus_datefix1, KPMG_newcus_datefix2)
+
+
+KPMG_newcus <- KPMG_newcus_datefix %>% 
+  mutate(age = round(age_calc(dob, enddate = Sys.Date(), units = "years"),0))
+
+
+KPMG_newcus_test <- KPMG_newcus %>% select(id, gender, age, past_3_years_bike_related_purchases, dob, job_industry_category, wealth_segment, deceased_indicator, owns_car, tenure, postcode, state, property_valuation) %>%
+  rename( "p3year_purchases" = "past_3_years_bike_related_purchases")
 ```
 
 
