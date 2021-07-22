@@ -19,15 +19,19 @@ library(openxlsx)
 library(naniar)
 library(kableExtra)
 library(eeptools)
-library(jan)
 library(tidymodels)
 ```
-
+## Prepare transaction dataset
 ```{r}
 KPMG_trans <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "Transactions", skip = 1) 
+KPMG_trans %>% miss_var_summary()
+KPMG_trans_cus_saleprice<-  KPMG_trans %>% 
+  select(transaction_id, customer_id, list_price, standard_cost) %>%
+  group_by(customer_id) %>% 
+  summarise(sale_price = sum(list_price))
 ```
 
-
+## Prepare customer dataset
 ```{r}
 KPMG_cus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerDemographic", skip = 1) %>%
   mutate(DOB = convertToDate(DOB)) %>%
@@ -47,7 +51,7 @@ KPMG_cus <- KPMG_cus %>% drop_na(DOB) %>%
 
 # Finalize customer dataset
 
-KPMG_cus_tr <- recipe(~., data = KPMG_cus) %>%
+KPMG_cus_info <- recipe(~., data = KPMG_cus) %>%
   step_string2factor(job_cat, wealth_segment, deceased_indicator, owns_car) %>%
   prep(training = KPMG_cus,
        strings_as_factors = FALSE) %>%
@@ -75,13 +79,28 @@ KPMG_newcus_test <- KPMG_newcus %>% select(id, gender, age, past_3_years_bike_re
   rename( "p3year_purchases" = "past_3_years_bike_related_purchases")
 ```
 
+## Prepare customer dataset
 
 ```{r}
 KPMG_address <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerAddress", skip = 1) %>%
   mutate(state = if_else(tolower(state) == "new south wales", "NSW", state)) %>%
-  mutate(state = if_else(tolower(state) == "victoria", "VIC", state)) 
+  mutate(state = if_else(tolower(state) == "victoria", "VIC", state)) %>%
+  select(-c(address, country))
 
 
 unique(KPMG_address$state)
+
+```
+
+## Joining dataset, prepare for learning
+```{r}
+# join customer demographic and customer address. There are 4 customer without postcode + state + property valuation (0.1%, acceptable))
+KPMG_cus_info_address <- KPMG_cus_info %>% left_join(KPMG_address, by = "customer_id") 
+
+
+
+KPMG_cus_info_final <- KPMG_cus_info_address %>% left_join(KPMG_trans_cus_saleprice, by = "customer_id") 
+KPMG_cus_info_final %>% miss_var_summary()
+
 ```
 
