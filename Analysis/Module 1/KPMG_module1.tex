@@ -1,0 +1,143 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={KPMG},
+  pdfauthor={Thomas Nguyen},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\usepackage[margin=1in]{geometry}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\ifluatex
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+
+\title{KPMG}
+\author{Thomas Nguyen}
+\date{13/07/2021}
+
+\begin{document}
+\maketitle
+
+Dear Mr.~A, manager of Analytics, Information \& Modelling, Thank you
+for sending us the three datasets from Sprocket Central Pty Ltd.~The
+below table highlights the summary statistics from the three datasets
+received. Please let us know if the figures are not aligned with your
+understanding.
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule
+Table name & No.~of records & Distinct Customer IDs & Date Data
+Received \\
+\midrule
+\endhead
+Customer Demographic & 4000 & 4000 & 2021-07-14 \\
+Customer Address & 3999 & 3999 & 2021-07-14 \\
+Transaction Data & 20000 & 3494 & 2021-07-14 \\
+\bottomrule
+\end{longtable}
+
+There are some notable data quality issues in the dataset. Detailed
+information and strategies to mitigate these issues are described
+below:\\
+1. There are customer ID that appear in Transaction table and Customer
+Address table but not in Customer Demographic (eg. customer id 5034).\\
+To mitigate this issue, please make sure all tables are from the same
+period. Only customer ID that are in Custom Demographic table will be
+used in further analysis.
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{1}
+\item
+  Various columns contain missing values.\\
+  Mitigation: If the number of rows with missing values is small, the
+  rows will be ommitted in further analysis. If the records are
+  important, rows will be impute based on the distribution of the data.
+\item
+  Inconsistent in recording data for the same attribute For example in
+  Customer Demographic table, gThere are grammar errors and different
+  ways of recording data in gender columns: (Male, Female, Femal, F, M,
+  U).
+\end{enumerate}
+
+Mitigation: All values will be replaced using standard expression to
+ensure consistency (Male and M will be replaced with ``Male''). Gender
+record with ``U'' will be imputed based on the distribution of the data.
+
+\end{document}

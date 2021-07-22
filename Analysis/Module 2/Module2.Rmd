@@ -1,0 +1,55 @@
+---
+title: "Module1_NewcustomerList"
+author: "Thomas Nguyen"
+date: "14/07/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r include = FALSE}
+library(tidyverse)
+library(readxl)
+library(fpp3)
+library(openxlsx)
+library(naniar)
+library(kableExtra)
+library(eeptools)
+```
+
+```{r}
+KPMG_trans <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "Transactions", skip = 1) 
+```
+
+
+```{r}
+KPMG_cus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerDemographic", skip = 1) %>%
+  mutate(DOB = convertToDate(DOB)) %>%
+  select(-default) 
+
+# calculate age from dob
+KPMG_cus <- KPMG_cus %>% drop_na(DOB) %>%
+  mutate(age = round(age_calc(DOB, enddate = Sys.Date(), units = "years"),0))
+```
+
+
+```{r}
+KPMG_newcus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerDemographic", skip = 1) %>%
+  mutate(DOB = convertToDate(DOB)) %>%
+  select(-default) 
+```
+
+
+```{r}
+KPMG_address <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "CustomerAddress", skip = 1) %>%
+  mutate(state = if_else(tolower(state) == "new south wales", "NSW", state)) %>%
+  mutate(state = if_else(tolower(state) == "victoria", "VIC", state)) 
+
+
+unique(KPMG_address$state)
+```
+
