@@ -20,6 +20,8 @@ library(naniar)
 library(kableExtra)
 library(eeptools)
 library(tidymodels)
+library(randomForest)
+
 ```
 ## Prepare transaction dataset
 ```{r}
@@ -99,14 +101,16 @@ KPMG_cus_info_final %>% miss_var_summary()
 # Right skewed data => sqrt to make it more normal
 
 KPMG_cus_info_final %>% ggplot(aes(x = sqrt(sale_price)))+ geom_histogram()
+KPMG_cus_info_final %>% filter(age <70) %>% ggplot(aes(x = age))+ geom_histogram()
 
 ```
 
 
 
-### run the model
-
+### Deal with post code
 ```{r}
+# Things that needed to report here: Change some variables to factor, dealed with postcode, calculate total sale price per customer and squareroot it, some outliers in age variable
+
 australian_postcodes <- read_csv(here::here("data/australian_postcodes.csv")) %>% select(postcode, long,lat) %>%
   mutate(postcode = as.numeric(postcode)) %>%
   group_by(postcode) %>%
@@ -114,6 +118,8 @@ australian_postcodes <- read_csv(here::here("data/australian_postcodes.csv")) %>
             lat = mean(lat))
 
 # How to deal with zip code: https://stats.stackexchange.com/questions/94902/how-to-represent-geography-or-zip-code-in-machine-learning-model-or-recommender
+
+
 KPMG_cus_info_tr<-  recipe(~ customer_id + p3year_purchases+ 
                              gender + job_cat+  wealth_segment+ 
                              deceased_indicator+ owns_car+
@@ -125,7 +131,87 @@ KPMG_cus_info_tr<-  recipe(~ customer_id + p3year_purchases+
   bake(new_data = NULL)
 
 
-KPMG_cus_info_tr <- KPMG_cus_info_tr %>% left_join(australian_postcodes, by = "postcode")
+KPMG_cus_info_tr <- KPMG_cus_info_tr %>% left_join(australian_postcodes, by = "postcode") %>% filter(age < 70)
+
+
 ```
 
+```{r}
+binner <- function(x) {
+  x <- cut(x, breaks = 35 * c(0, 1, 2, 3), include.lowest = TRUE)
+  # now return the group number
+  as.numeric(x)
+}
+
+inc <- c("low", "med", "high")
+rec <-
+  recipe(customer_id ~ sale_price, data = KPMG_cus_info_tr) %>%
+  step_num2factor(
+    sale_price,
+    transform = binner,
+    levels = inc,
+    ordered = TRUE
+  ) %>%
+  prep()
+rec %>% bake(new_data = NULL)
+```
+
+```{r}
+
+KPMG_cus_info_tr <-   recipe(~ customer_id + p3year_purchases+ 
+                             gender + job_cat+  wealth_segment+ 
+                             deceased_indicator+ owns_car+
+                             tenure+ age+ postcode + state + property_valuation+ sale_price + long + lat, data = KPMG_cus_info_tr) %>%
+  step_num2factor(
+    sale_price,
+    transform = binner,
+    levels = inc,
+    ordered = TRUE
+  ) %>%
+  prep() %>%
+  bake(new_data = NULL)
+
+
+saveRDS(KPMG_cus_info_tr, file = here::here("data/KPMG_cus_info_tr"))
+```
+
+
+### Build the model
+
+
+```{r}
+set.seed(2307)
+split <- initial_split(KPMG_cus_info_tr, 3/4, strata = "sale_price")
+KPMG_tr <- training(split)
+KPMG_ts <- testing(split)
+
+```
+
+
+```{r}
+set.seed(3000)
+# Fit a basic model
+KPMG_rf <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE, proximity=TRUE) %>%
+  set_mode("regression") %>%
+  fit(sale_price~., data=KPMG_tr)
+
+KPMG_rf$fit$importance
+
+```
+
+```{r}
+KPMG_rf2 <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE, proximity=TRUE) %>%
+  set_mode("classification") %>%
+  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment+ owns_car + tenure + age+ state + property_valuation + long + lat, data=KPMG_tr)
+
+KPMG_rf2$fit$importance
+
+```
+```{r}
+
+```
 

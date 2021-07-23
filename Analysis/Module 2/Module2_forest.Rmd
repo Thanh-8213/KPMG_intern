@@ -1,0 +1,107 @@
+---
+title: "Module2_Forest"
+author: "Thomas Nguyen"
+date: "23/07/2021"
+output: html_document
+---
+
+
+```{r}
+KPMG_cus_info_tr <- readRDS(here::here("data/KPMG_cus_info_tr"))
+set.seed(2307)
+split <- initial_split(KPMG_cus_info_tr, 3/4, strata = "sale_price")
+KPMG_tr <- training(split)
+KPMG_ts <- testing(split)
+
+```
+```{r}
+
+arrange_imp <- function(matrix){
+  as_tibble(matrix, rownames = NA)%>%
+  rownames_to_column()%>% 
+  arrange(desc(MeanDecreaseAccuracy ))
+}
+```
+
+
+```{r}
+set.seed(3000)
+
+upsampled <- recipe(sale_price~., data = KPMG_tr) %>%
+  themis::step_upsample(sale_price) %>%
+  prep %>%
+  bake(new_data = NULL)
+
+```
+
+
+```{r}
+set.seed(3000)
+# Fit a basic model
+KPMG_rf <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE, proximity=TRUE) %>%
+  set_mode("classification") %>%
+  fit(sale_price~., data=upsampled)
+
+KPMG_rf$fit$importance
+view(arrange_imp(KPMG_rf$fit$importance))
+
+```
+
+```{r}
+KPMG_rf2 <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE, proximity=TRUE) %>%
+  set_mode("classification") %>%
+  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment+ owns_car + tenure + age+ state + property_valuation + long + lat, data=upsampled)
+
+view(arrange_imp(KPMG_rf2$fit$importance))
+
+```
+
+
+```{r}
+KPMG_rf3 <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE, proximity=TRUE) %>%
+  set_mode("classification") %>%
+  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment + tenure + age + property_valuation + long + lat + owns_car, data=upsampled)
+
+view(arrange_imp(KPMG_rf3$fit$importance))
+
+```
+
+```{r}
+KPMG_rf4 <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE, proximity=TRUE) %>%
+  set_mode("classification") %>%
+  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment + tenure + age + property_valuation + long + lat + owns_car, data=upsampled)
+
+view(arrange_imp(KPMG_rf4$fit$importance))
+
+```
+
+
+
+```{r}
+KPMG_ts_pred <- KPMG_ts %>% drop_na(state)
+KPMG_pred_rf3 <- KPMG_ts_pred %>%
+  mutate(pred = predict(KPMG_rf3, KPMG_ts_pred)$.pred_class)
+
+metrics(KPMG_pred_rf3, truth = sale_price, estimate = pred)
+
+conf_mat(KPMG_pred_rf3, sale_price, pred)
+
+KPMG_pred_rf4 <-  KPMG_ts_pred %>%
+  mutate(pred = predict(KPMG_rf4, KPMG_ts_pred)$.pred_class)
+
+metrics(KPMG_pred_rf4, truth = sale_price, estimate = pred)
+
+conf_mat(KPMG_pred_rf4, sale_price, pred)
+
+
+KPMG_ts %>% miss_var_summary()
+```
+
