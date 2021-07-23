@@ -47,16 +47,6 @@ KPMG_cus <- KPMG_cus %>% drop_na(DOB) %>%
   select(-DOB)
 ```
 
-```{r}
-
-# Finalize customer dataset
-
-KPMG_cus_info <- recipe(~., data = KPMG_cus) %>%
-  step_string2factor(job_cat, wealth_segment, deceased_indicator, owns_car) %>%
-  prep(training = KPMG_cus,
-       strings_as_factors = FALSE) %>%
-  bake(new_data = NULL)
-```
 
 
 
@@ -95,12 +85,47 @@ unique(KPMG_address$state)
 ## Joining dataset, prepare for learning
 ```{r}
 # join customer demographic and customer address. There are 4 customer without postcode + state + property valuation (0.1%, acceptable))
-KPMG_cus_info_address <- KPMG_cus_info %>% left_join(KPMG_address, by = "customer_id") 
 
 
-
-KPMG_cus_info_final <- KPMG_cus_info_address %>% left_join(KPMG_trans_cus_saleprice, by = "customer_id") 
+# Join with transaction. Note that saleprices has a lot of missing values 
+KPMG_cus_info_final <- KPMG_cus %>% left_join(KPMG_address, by = "customer_id") %>% left_join(KPMG_trans_cus_saleprice, by = "customer_id") 
 KPMG_cus_info_final %>% miss_var_summary()
 
 ```
+
+
+```{r}
+
+# Right skewed data => sqrt to make it more normal
+
+KPMG_cus_info_final %>% ggplot(aes(x = sqrt(sale_price)))+ geom_histogram()
+
+```
+
+
+
+### run the model
+
+```{r}
+australian_postcodes <- read_csv(here::here("data/australian_postcodes.csv")) %>% select(postcode, long,lat) %>%
+  mutate(postcode = as.numeric(postcode)) %>%
+  group_by(postcode) %>%
+  summarize(long = mean(long),
+            lat = mean(lat))
+
+# How to deal with zip code: https://stats.stackexchange.com/questions/94902/how-to-represent-geography-or-zip-code-in-machine-learning-model-or-recommender
+KPMG_cus_info_tr<-  recipe(~ customer_id + p3year_purchases+ 
+                             gender + job_cat+  wealth_segment+ 
+                             deceased_indicator+ owns_car+
+                             tenure+ age+ postcode + state + property_valuation+ sale_price, data = KPMG_cus_info_final) %>%
+  step_sqrt(sale_price) %>%
+  step_string2factor(gender, job_cat, wealth_segment, deceased_indicator, owns_car, state) %>%
+  prep(training = KPMG_cus_info_final,
+       strings_as_factors = FALSE) %>%
+  bake(new_data = NULL)
+
+
+KPMG_cus_info_tr <- KPMG_cus_info_tr %>% left_join(australian_postcodes, by = "postcode")
+```
+
 
