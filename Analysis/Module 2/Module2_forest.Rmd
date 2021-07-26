@@ -4,7 +4,7 @@ author: "Thomas Nguyen"
 date: "23/07/2021"
 output: html_document
 ---
-
+## Classification
 
 ```{r}
 KPMG_cus_info_tr <- readRDS(here::here("data/KPMG_cus_info_tr"))
@@ -14,6 +14,13 @@ KPMG_tr <- training(split)
 KPMG_ts <- testing(split)
 
 ```
+
+```{r}
+KPMG_tr %>% group_by(sale_price) %>%
+  summarise(n = n())
+```
+
+
 ```{r}
 
 arrange_imp <- function(matrix){
@@ -38,37 +45,37 @@ upsampled <- recipe(sale_price~., data = KPMG_tr) %>%
 ```{r}
 set.seed(3000)
 # Fit a basic model
-KPMG_rf <- rand_forest() %>%
-  set_engine("randomForest",
-             importance=TRUE, proximity=TRUE) %>%
-  set_mode("classification") %>%
-  fit(sale_price~., data=upsampled)
-
-KPMG_rf$fit$importance
-view(arrange_imp(KPMG_rf$fit$importance))
+# KPMG_rf <- rand_forest() %>%
+#   set_engine("randomForest",
+#              importance=TRUE, proximity=TRUE) %>%
+#   set_mode("classification") %>%
+#   fit(sale_price~., data=upsampled)
+# 
+# KPMG_rf$fit$importance
+# view(arrange_imp(KPMG_rf$fit$importance))
 
 ```
 
 ```{r}
-KPMG_rf2 <- rand_forest() %>%
-  set_engine("randomForest",
-             importance=TRUE, proximity=TRUE) %>%
-  set_mode("classification") %>%
-  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment+ owns_car + tenure + age+ state + property_valuation + long + lat, data=upsampled)
-
-view(arrange_imp(KPMG_rf2$fit$importance))
+# KPMG_rf2 <- rand_forest() %>%
+#   set_engine("randomForest",
+#              importance=TRUE, proximity=TRUE) %>%
+#   set_mode("classification") %>%
+#   fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment+ owns_car + tenure + age+ state + property_valuation + long + lat, data=upsampled)
+# 
+# view(arrange_imp(KPMG_rf2$fit$importance))
 
 ```
 
 
 ```{r}
-KPMG_rf3 <- rand_forest() %>%
-  set_engine("randomForest",
-             importance=TRUE, proximity=TRUE) %>%
-  set_mode("classification") %>%
-  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment + tenure + age + property_valuation + long + lat + owns_car, data=upsampled)
-
-view(arrange_imp(KPMG_rf3$fit$importance))
+# KPMG_rf3 <- rand_forest() %>%
+#   set_engine("randomForest",
+#              importance=TRUE, proximity=TRUE) %>%
+#   set_mode("classification") %>%
+#   fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment + tenure + age + property_valuation + long + lat + owns_car, data=upsampled)
+# 
+# view(arrange_imp(KPMG_rf3$fit$importance))
 
 ```
 
@@ -77,7 +84,7 @@ KPMG_rf4 <- rand_forest() %>%
   set_engine("randomForest",
              importance=TRUE, proximity=TRUE) %>%
   set_mode("classification") %>%
-  fit(sale_price~p3year_purchases + gender + job_cat + wealth_segment + tenure + age + property_valuation + long + lat + owns_car, data=upsampled)
+  fit(sale_price~p3year_purchases + job_cat + wealth_segment + tenure + age + property_valuation + long + lat, data=upsampled)
 
 view(arrange_imp(KPMG_rf4$fit$importance))
 
@@ -87,12 +94,13 @@ view(arrange_imp(KPMG_rf4$fit$importance))
 
 ```{r}
 KPMG_ts_pred <- KPMG_ts %>% drop_na(state)
-KPMG_pred_rf3 <- KPMG_ts_pred %>%
-  mutate(pred = predict(KPMG_rf3, KPMG_ts_pred)$.pred_class)
-
-metrics(KPMG_pred_rf3, truth = sale_price, estimate = pred)
-
-conf_mat(KPMG_pred_rf3, sale_price, pred)
+#compare to rf3
+# KPMG_pred_rf3 <- KPMG_ts_pred %>%
+#   mutate(pred = predict(KPMG_rf3, KPMG_ts_pred)$.pred_class)
+# 
+# metrics(KPMG_pred_rf3, truth = sale_price, estimate = pred)
+# 
+# conf_mat(KPMG_pred_rf3, sale_price, pred)
 
 KPMG_pred_rf4 <-  KPMG_ts_pred %>%
   mutate(pred = predict(KPMG_rf4, KPMG_ts_pred)$.pred_class)
@@ -102,6 +110,103 @@ metrics(KPMG_pred_rf4, truth = sale_price, estimate = pred)
 conf_mat(KPMG_pred_rf4, sale_price, pred)
 
 
-KPMG_ts %>% miss_var_summary()
+```
+## Apply to new customer dataset
+
+```{r}
+KPMG_newcus <- read_xlsx(here::here("data/KPMG_VI_New_raw_data_update_final.xlsx"), sheet = "NewCustomerList", skip = 1) %>%
+  mutate(id = row_number())
+         
+KPMG_newcus_datefix1 <- KPMG_newcus %>% 
+  mutate(dob = ymd(DOB)) %>% drop_na(dob)
+KPMG_newcus_datefix2 <-  KPMG_newcus %>%  mutate(dob = convertToDate(DOB)) %>% drop_na(dob)
+
+KPMG_newcus_datefix <- rbind(KPMG_newcus_datefix1, KPMG_newcus_datefix2)
+
+
+KPMG_newcus <- KPMG_newcus_datefix %>% 
+  mutate(age = round(age_calc(dob, enddate = Sys.Date(), units = "years"),0))
+
+
+KPMG_newcus <- KPMG_newcus %>% 
+  select(id, gender, age, past_3_years_bike_related_purchases, dob, job_industry_category, 
+         wealth_segment, deceased_indicator, owns_car, tenure, postcode, state,  property_valuation, last_name, first_name) %>%
+  rename( "p3year_purchases" = "past_3_years_bike_related_purchases", 
+          "job_cat" = "job_industry_category") %>%
+  mutate(age = round(age_calc(dob, enddate = Sys.Date(), units = "years"),0)) %>%
+  mutate(gender = if_else(tolower(gender) %in% c("f", "femal"), "Female", gender)) %>%
+  mutate(gender = if_else(tolower(gender) == "m", "Male", gender))  %>%
+  mutate(postcode = as.numeric(postcode),
+         property_valuation = as.numeric(property_valuation), 
+         p3year_purchases = as.numeric(p3year_purchases))
+  
+
+```
+
+```{r}
+australian_postcodes <- read_csv(here::here("data/australian_postcodes.csv")) %>% select(postcode, long,lat) %>%
+  mutate(postcode = as.numeric(postcode)) %>%
+  group_by(postcode) %>%
+  summarize(long = mean(long),
+            lat = mean(lat))
+
+# How to deal with zip code: https://stats.stackexchange.com/questions/94902/how-to-represent-geography-or-zip-code-in-machine-learning-model-or-recommender
+
+
+KPMG_newcus_info<-  recipe(~ id + first_name + last_name + p3year_purchases+ 
+                             gender + job_cat+  wealth_segment+ 
+                             deceased_indicator+ owns_car+
+                             tenure+ age+ postcode + state + property_valuation, data = KPMG_newcus) %>%
+  step_string2factor(gender, job_cat, wealth_segment, deceased_indicator, owns_car, state) %>%
+  prep(training = KPMG_newcus,
+       strings_as_factors = FALSE) %>%
+  bake(new_data = NULL)
+
+
+KPMG_newcus_info <- KPMG_newcus_info %>% left_join(australian_postcodes, by = "postcode") 
+
+```
+
+```{r}
+KPMG_newcus_info %>% miss_var_summary()
+```
+
+
+```{r}
+KPMG_newcus_pred <-  KPMG_newcus_info %>%
+  mutate(pred = predict(KPMG_rf4, KPMG_newcus_info)$.pred_class) %>%
+  arrange(id)
+
+summary(KPMG_newcus_pred$pred)
+```
+
+### Regression
+
+
+```{r}
+
+set.seed(2564)
+KPMG_cus_info_tr_reg <- readRDS(here::here("data/KPMG_cus_info_tr_reg"))
+
+
+KPMG_rf5 <- rand_forest() %>%
+  set_engine("randomForest",
+             importance=TRUE) %>%
+  set_mode("regression") %>%
+  fit(sale_price~p3year_purchases + job_cat + wealth_segment + tenure + age + property_valuation + long + lat, data=KPMG_cus_info_tr_reg)
+
+```
+
+```{r}
+
+set.seed(2564)
+
+KPMG_newcus_pred_reg <-  KPMG_newcus_info %>%
+  mutate(pred = predict(KPMG_rf5, KPMG_newcus_info)$.pred) %>%
+  arrange(pred, id) %>%
+  mutate(rank = row_number())
+
+summary(KPMG_newcus_pred_reg$pred)
+
 ```
 
